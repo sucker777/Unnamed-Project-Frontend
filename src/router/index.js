@@ -13,7 +13,7 @@ const routes = [
     meta: { requiresAuth: false },
     component: () => import('../views/Home.vue')
   },
-  /*{
+  {
     path: '/',
     meta: { requiresAuth: false },
     component: () => import('../views/Login/Index.vue'),
@@ -24,14 +24,14 @@ const routes = [
         meta: { requiresAuth: false },
         component: () => import('../views/Login/Login.vue')
       },
-      {
+      /*{
         path: 'register',
         name: 'Register',
         meta: { requiresAuth: false },
-        component: () => import('../views/Login/Reset.vue')
-      }
+        component: () => import('../views/Login/Register.vue')
+      }*/
     ]
-  },*/
+  },
 ]
 
 const router = createRouter({
