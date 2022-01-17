@@ -38,33 +38,34 @@
           <q-icon size="36px" name="account_circle"></q-icon>
 
           <q-menu :offset="[-30, 5]" anchor="bottom left" self="top right" v-model="avatarMenu" :no-parent-event="true"
-            @mouseover.native="avatarListOver = true"
-            @mouseout.native="avatarListOver = false"
+            @mouseover="avatarListOver = true"
+            @mouseout="avatarListOver = false"
           >
-            <q-list v-if="user">
+            <q-list v-if="authenticated">
               <q-item>
                 <q-item-section avatar>
                   <q-avatar>
-                    <img :src="user.Avatar" alt="avatar" />
+                    <!-- <img :src="user.Avatar" alt="avatar" /> -->
+                    <q-icon size="36px" name="account_circle"></q-icon>
                   </q-avatar>
                 </q-item-section>
                 <q-item-section>
-                  <div>{{ user.UserName }}</div>
-                  <div class="text-caption text-opacity">{{ user['Role'].Name }}</div>
+                  <div>{{ name }}</div>
+                  <!-- <div class="text-caption text-opacity">{{ user['Role'].Name }}</div> -->
                 </q-item-section>
               </q-item>
 
               <q-separator />
 
               <q-item clickable v-ripple>
-                <q-item-section>帳號設定</q-item-section>
+                <q-item-section>收藏的文章</q-item-section>
               </q-item>
               <q-item clickable v-ripple :to="{ name: 'Setting' }">
-                <q-item-section>網站設定</q-item-section>
+                <q-item-section>帳號設定</q-item-section>
               </q-item>
               <q-item>
                 <q-btn @click="logout" color="red" class="full-width flex-center row">
-                  <q-icon size="18px" left :name="icon.mdiLogoutVariant" />
+                  <q-icon size="18px" left name="logout" />
                   <span>登出</span>
                 </q-btn>
               </q-item>
@@ -77,7 +78,11 @@
                     <q-btn color="primary">登入</q-btn>
                   </router-link>
                 </div>
-                <div><q-btn color="primary">註冊</q-btn></div>
+                <div>
+                  <router-link :to="{ name: 'Register' }">
+                    <q-btn color="accent">註冊</q-btn>
+                  </router-link>
+                </div>
               </div>
             </div>
           </q-menu>
@@ -124,7 +129,11 @@
 
 <script>
 import { ref } from 'vue'
-import { useQuasar, debounce } from 'quasar'
+import { useQuasar, debounce, Notify } from 'quasar'
+import { retriveUserInfo } from '@/services/user'
+import { useAppStore } from '@/store'
+import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 const menuList = [
   {
@@ -148,13 +157,28 @@ const menuList = [
 export default {
   name: 'Layout',
   
+  setup () {
+    const $q = useQuasar()
+    $q.dark.set(true)
+    const appStore = useAppStore()
+    const router = useRouter()
+    return {
+      miniState: ref(true),
+      leftDrawerOpen: ref(false),
+      menuList,
+      appStore,
+      router
+    }
+  },
+  
   data() {
     return {
-      $q: useQuasar(),
       searchKey: '',
       avatarMenu: false,
       avatarMenuOver: false,
       avatarListOver: false,
+      authenticated: storeToRefs(this.appStore).authenticated,
+      name: storeToRefs(this.appStore).name
     }
   },
   
@@ -167,32 +191,71 @@ export default {
       this.searchKey = ''
     },
     debounceFunc: debounce(function() { this.checkMenu() }, 150),
-    checkMenu () {
+    checkMenu() {
       if (this.avatarMenuOver || this.avatarListOver) {
         this.avatarMenu = true
       }
       else {
         this.avatarMenu = false
       }
+    },
+    async checkToken() {
+      const tokenreg = /^[\da-z]{128}$/ //eslint-disable-line
+      const token = localStorage.token
+      if(!tokenreg.test(token)) {
+        localStorage.removeItem('token')
+        return false
+      }
+      let [code, name] = await retriveUserInfo(token)
+      if(code == 200) {
+        this.appStore.authenticated = true
+        this.appStore.name = name
+        if(this.router.currentRoute.value.name == 'Login' || this.router.currentRoute.value.name == 'Register') {
+          this.router.push({ name: 'Home' })
+        }
+      }else {
+        let errorMessage = {
+          '100': '偵測到錯誤的登入憑證，已自動登出',
+          '400': '登入憑證有誤或已失效，已自動登出',
+          '500': '內部伺服器錯誤'
+        }
+        Notify.create({
+          type: 'negative',
+          message: errorMessage[code]
+        })
+      }
+    },
+    logout() {
+      this.$q.dialog({
+        title: '確認登出',
+        message: '你真的要登出嗎?',
+        cancel: true,
+        persistent: true
+      }).onOk(() => {
+        this.appStore.authenticated = false
+        this.appStore.name = ''
+        localStorage.removeItem('token')
+        Notify.create({
+          type: 'positive',
+          message: '登出成功'
+        })
+      })
     }
+  },
+  
+  async created() {
+    await this.checkToken()
   },
 
   watch: {
-    avatarMenuOver (val) {
+    async $route(to, from) {
+      if((from.name == 'Login' || from.name == 'Register') && this.appStore.needRefresh) await this.checkToken()
+    },
+    avatarMenuOver() {
       this.debounceFunc()
     },
-    avatarListOver (val) {
+    avatarListOver() {
       this.debounceFunc()
-    }
-  },
-
-  setup () {
-    const $q = useQuasar()
-    $q.dark.set(true)
-    return {
-      miniState: ref(true),
-      leftDrawerOpen: ref(false),
-      menuList,
     }
   }
 }

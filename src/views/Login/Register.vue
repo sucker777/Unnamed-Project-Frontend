@@ -3,10 +3,25 @@
   <div style="width: 300px" class="q-gutter-sm">
     <div class="text-opacity text-center">
       <q-icon size="60px" name="account_circle"></q-icon>
-      <div class="text-opacity text-h5">登入至集思廣益</div>
+      <div class="text-opacity text-h5">加入集思廣益</div>
     </div>
     <div>
-      <q-form @submit="_login">
+      <q-form @submit="_register"
+        autocorrect="off"
+        autocapitalize="off"
+        autocomplete="off"
+        spellcheck="false"
+      >
+        <q-input
+          no-error-icon
+          :rules="[(val) => /^[a-zA-Z\d]+$/i.test(val) || '只能使用英文和數字']"
+          v-model="username"
+          label="使用者名稱"
+        >
+          <template v-slot:prepend>
+            <q-icon name="badge" />
+          </template>
+        </q-input>
         <q-input
           no-error-icon
           :rules="[(val) => /^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/i.test(val) || '必須是正確的電子郵件地址']"
@@ -31,14 +46,26 @@
             <q-icon :name="pwdIsVisible ? 'visibility' : 'visibility_off'" class="cursor-pointer" @click="pwdIsVisible = !pwdIsVisible" />
           </template>
         </q-input>
+        <q-input
+          no-error-icon
+          :rules="[(val) => val == password || '且兩次輸入的密碼需要一致']"
+          :type="pwdIsVisible ? 'text': 'password'"
+          v-model="passwordConfirm"
+          label="確認密碼"
+        >
+          <template v-slot:prepend>
+            <q-icon name="key" />
+          </template>
+          <template v-slot:append>
+            <q-icon :name="pwdIsVisible ? 'visibility' : 'visibility_off'" class="cursor-pointer" @click="pwdIsVisible = !pwdIsVisible" />
+          </template>
+        </q-input>
         <div class="row" style="margin-top: .5rem;">
-          <q-btn rounded flat :to="{ name: 'Register' }">註冊</q-btn>
-          <q-space />
-          <q-btn rounded flat disable :to="{ name: 'Reset' }">忘記密碼</q-btn>
+          <q-checkbox size="xs" v-model="agreement" label="我已同意用戶協議和隱私權政策" />
         </div>
         <q-btn :disable="loading" :loading="loading" color="primary" style="height: 50px; margin-top: .5rem;" class="full-width" type="submit">
-          登入
-          <q-icon right size="24px" name="login" />
+          註冊
+          <q-icon right size="24px" name="group_add" />
         </q-btn>
       </q-form>
     </div>
@@ -47,11 +74,11 @@
 </template>
 
 <script>
-import { login } from '@/services/user'
+import { register } from '@/services/user'  
 import { Notify } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/store'
-  
+
 export default {
   name: 'Login',
   
@@ -66,32 +93,44 @@ export default {
 
   data() {
     return {
+      username: '',
       email: '',
       password: '',
+      passwordConfirm: '',
+      agreement: false,
       pwdIsVisible: false,
-      loading: false,
+      loading: false
     }
   },
 
   methods: {
-    async _login() {
+    async _register() {
+      if(!this.agreement) {
+        Notify.create({
+          type: 'negative',
+          message: '需要同意用戶協議和隱私權政策'
+        })
+        return false
+      }
       this.loading = true;
-      let [code, token] = await login(this.email, this.password)
-      if (token != null) {
+      let [code, token] = await register(this.email, this.password, this.username)
+      if (code == 200) {
         Notify.create({
           type: 'positive',
-          message: '登入成功'
+          message: '註冊成功'
         })
         localStorage.token = token
         this.appStore.authenticated = true
         this.appStore.needRefresh = true
-        this.router.push({ name: 'Home'})
+        this.appStore.name = this.name
+        this.router.push({ name: 'Home' })
       }else {
         let errorMessage = {
           '100': '偵測到錯誤的資料',
           '101': '偵測到錯誤的電子郵件格式',
           '102': '偵測到錯誤的密碼格式',
-          '103': '電子郵件或密碼錯誤',
+          '103': '偵測到錯誤的使用者名稱格式',
+          '104': '此電子郵件已註冊過',
           '500': '內部伺服器錯誤'
         }
         Notify.create({

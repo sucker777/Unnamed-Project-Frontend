@@ -10,9 +10,11 @@
   "dependencies": {
     "@quasar/extras": "^1.0.0",
     "core-js": "^3.6.5",
-    "quasar": "^2.0.0",
+    "quasar": "~2.4.10",
     "vue": "^3.0.0",
-    "vue-router": "^4.0.12"
+    "vue-router": "^4.0.12",
+    "axios": "~0.24.0",
+    "pinia": "~2.0.9"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.0",

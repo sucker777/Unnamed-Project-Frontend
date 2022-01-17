@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { useAppStore } from '@/store'
 
 const routes = [
   {
@@ -15,21 +16,21 @@ const routes = [
   },
   {
     path: '/',
-    meta: { requiresAuth: false },
+    meta: { disableForAuthenticated: true },
     component: () => import('../views/Login/Index.vue'),
     children: [
       {
         path: 'login',
         name: 'Login',
-        meta: { requiresAuth: false },
+        meta: { disableForAuthenticated: true },
         component: () => import('../views/Login/Login.vue')
       },
-      /*{
+      {
         path: 'register',
         name: 'Register',
-        meta: { requiresAuth: false },
+        meta: { disableForAuthenticated: true },
         component: () => import('../views/Login/Register.vue')
-      }*/
+      }
     ]
   },
 ]
@@ -37,6 +38,17 @@ const routes = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes
+})
+
+router.beforeEach(async function (to) {
+  
+  const appStore = useAppStore()
+  
+  if (to.meta.disableForAuthenticated === true) {
+    if(appStore.authenticated) {
+      return { name: 'Home' }
+    }
+  }
 })
 
 export default router
